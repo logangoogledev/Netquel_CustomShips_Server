@@ -3,17 +3,18 @@
 <head>
     <title>Netquel Community Hub</title>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 20px auto; background: #0f172a; color: #f8fafc; text-align: center; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px; }
-        .card { background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #334155; }
-        img { width: 100%; border-radius: 8px; margin-bottom: 10px; }
-        button { background: #38bdf8; color: #0f172a; border: none; padding: 10px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1000px; margin: 20px auto; background: #0d1117; color: #c9d1d9; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px; }
+        .card { background: #161b22; padding: 20px; border-radius: 12px; border: 1px solid #30363d; text-align: left; }
+        img { width: 100%; border-radius: 8px; margin-bottom: 15px; border: 1px solid #30363d; }
+        button { background: #1f6feb; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #388bfd; }
     </style>
 </head>
 <body>
     <h1>Netquel Community Designs</h1>
-    <p>Browse and copy custom ship strings below.</p>
-    <div id="gallery" class="grid">Loading ships...</div>
+    <p>Select a design to copy the ship string for use in-game.</p>
+    <div id="gallery" class="grid">Checking the hangar...</div>
 
     <script>
         const USER = 'logangoogledev';
@@ -23,7 +24,8 @@
         async function load() {
             const gallery = document.getElementById('gallery');
             try {
-                const res = await fetch(`https://github.com/${USER}/${REPO}/contents/${FOLDER}`);
+                const res = await fetch(`https://github.com{USER}/${REPO}/contents/${FOLDER}`);
+                if (!res.ok) throw new Error();
                 const files = await res.json();
                 gallery.innerHTML = "";
 
@@ -33,17 +35,17 @@
                         gallery.innerHTML += `
                             <div class="card">
                                 ${data.img ? `<img src="${data.img}">` : ''}
-                                <h3>${data.name}</h3>
+                                <h3 style="margin-top:0">${data.name}</h3>
                                 <button onclick="copy('${data.code}')">Copy Ship Code</button>
                             </div>`;
                     }
                 }
-            } catch (e) { gallery.innerHTML = "No ships found yet!"; }
+            } catch (e) { gallery.innerHTML = "No ships have been published yet!"; }
         }
 
         function copy(text) {
             navigator.clipboard.writeText(text);
-            alert("Ship code copied to clipboard!");
+            alert("Code copied! Use /load in Netquel.");
         }
         load();
     </script>
