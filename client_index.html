@@ -1,28 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Netquel - Admin Manager</title>
+    <title>Netquel Admin Manager</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 20px auto; background: #0b0f19; color: white; }
-        .card { background: #161b22; padding: 20px; margin: 15px 0; border-radius: 8px; border: 1px solid #30363d; }
-        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; background: #0d1117; color: #c9d1d9; }
+        .card { background: #161b22; padding: 20px; margin: 10px 0; border-radius: 8px; border: 1px solid #30363d; }
+        input, textarea, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #30363d; background: #010409; color: white; box-sizing: border-box; }
         button { background: #238636; cursor: pointer; border: none; font-weight: bold; }
-        button:hover { background: #2ea043; }
         .delete { background: #da3633; width: auto; margin-right: 10px; }
         .publish { background: #1f6feb; width: auto; }
-        img { max-width: 100%; border-radius: 4px; margin-top: 10px; border: 1px solid #30363d; }
+        img { max-width: 100%; margin-top: 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <h1>Netquel Ship Vault</h1>
+    <h1>Netquel Ship Manager (Admin)</h1>
     <div class="card">
-        <h3>Create New Ship Entry</h3>
+        <h3>Save New Ship Design</h3>
         <input type="text" id="name" placeholder="Ship Name">
-        <textarea id="code" placeholder="Paste Encoded String (/save)" rows="3"></textarea>
+        <textarea id="code" placeholder="Ship String" rows="3"></textarea>
         <input type="file" id="img" accept="image/*">
-        <button onclick="saveLocal()">Save to My Offline Vault</button>
+        <button onclick="saveLocal()">Save Locally</button>
     </div>
-    <hr style="border: 0; border-top: 1px solid #30363d;">
     <div id="list"></div>
 
     <script>
@@ -52,39 +50,36 @@
         }
 
         function render() {
-            const list = document.getElementById('list');
-            list.innerHTML = "";
+            const list = document.getElementById('list'); list.innerHTML = "";
             db.transaction("ships").objectStore("ships").openCursor(null, 'prev').onsuccess = e => {
                 const cursor = e.target.result;
                 if (cursor) {
                     const s = cursor.value;
-                    list.innerHTML += `<div class="card">
-                        <small style="color:#8b949e">${s.date}</small>
-                        <h4 style="margin:5px 0;">${s.name}</h4>
-                        ${s.img ? `<img src="${s.img}">` : ''}
-                        <p><button class="delete" onclick="del(${cursor.key})">Delete Offline</button>
-                        <button class="publish" onclick="publish(${cursor.key})">Publish to Community</button></p>
-                    </div>`;
+                    list.innerHTML += `<div class="card"><h4>${s.name}</h4>${s.img ? `<img src="${s.img}">` : ''}
+                        <p><button class="delete" onclick="del(${cursor.key})">Delete</button>
+                        <button class="publish" onclick="publish(${cursor.key})">Publish to GitHub</button></p></div>`;
                     cursor.continue();
                 }
             };
         }
 
-        function del(id) { if(confirm("Remove from offline vault?")) { db.transaction("ships","readwrite").objectStore("ships").delete(id).oncomplete = render; } }
+        function del(id) { if(confirm("Delete?")) db.transaction("ships","readwrite").objectStore("ships").delete(id).oncomplete = render; }
 
         async function publish(id) {
-            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Personal Access Token:");
+            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Personal Access Token (with repo scope):");
             if(!token) return; localStorage.setItem('gh_token', token);
             
             db.transaction("ships").objectStore("ships").get(id).onsuccess = async e => {
                 const s = e.target.result;
-                const fileName = `${s.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.json`;
-                const res = await fetch(`https://github.com{USER}/${REPO}/contents/${FOLDER}/${fileName}`, {
+                const fileName = `${s.name.replace(/\s+/g, '_')}_${Date.now()}.json`;
+                // CORRECT API URL FORMAT
+                const url = `https://api.github.com/repos/${USER}/${REPO}/contents/${FOLDER}/${fileName}`;
+                const res = await fetch(url, {
                     method: 'PUT',
-                    headers: { 'Authorization': `token ${token}` },
-                    body: JSON.stringify({ message: `Added ${s.name}`, content: btoa(JSON.stringify(s)) })
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: "Shared ship", content: btoa(JSON.stringify(s)) })
                 });
-                if(res.ok) alert("Published Successfully!"); else alert("Error. Check your token permissions.");
+                if(res.ok) alert("Published Successfully!"); else alert("Error uploading to GitHub.");
             };
         }
     </script>
