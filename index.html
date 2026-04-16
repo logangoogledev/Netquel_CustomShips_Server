@@ -23,7 +23,7 @@
         async function load() {
             const gallery = document.getElementById('gallery');
             try {
-                const res = await fetch(`https://github.com{USER}/${REPO}/contents/${FOLDER}`);
+                const res = await fetch(`https://github.com${USER}/${REPO}/contents/${FOLDER}`);
                 const files = await res.json();
                 gallery.innerHTML = "";
 
