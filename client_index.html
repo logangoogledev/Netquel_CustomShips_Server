@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Netquel - Ship Manager (Admin)</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; background: #121212; color: white; }
+        .card { background: #1e1e1e; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; }
+        input, textarea, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #222; color: white; box-sizing: border-box; }
+        button { background: #007bff; cursor: pointer; border: none; font-weight: bold; }
+        .delete { background: #dc3545; width: auto; margin-right: 10px; }
+        .publish { background: #28a745; width: auto; }
+        img { max-width: 100%; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>My Ship Vault</h1>
+    <div class="card">
+        <h3>Create New Ship</h3>
+        <input type="text" id="name" placeholder="Ship Name">
+        <textarea id="code" placeholder="Encoded String"></textarea>
+        <input type="file" id="img" accept="image/*">
+        <button onclick="saveLocal()">Save Locally</button>
+    </div>
+    <hr>
+    <div id="list"></div>
+
+    <script>
+        // CONFIGURATION
+        const USER = 'YOUR_USERNAME';
+        const REPO = 'YOUR_REPO';
+        const FOLDER = 'community-ships';
+
+        let db;
+        const req = indexedDB.open("NetquelVault", 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore("ships", { keyPath: "id", autoIncrement: true });
+        req.onsuccess = e => { db = e.target.result; render(); };
+
+        function saveLocal() {
+            const file = document.getElementById('img').files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const tx = db.transaction("ships", "readwrite");
+                tx.objectStore("ships").add({
+                    name: document.getElementById('name').value,
+                    code: document.getElementById('code').value,
+                    img: e.target.result,
+                    date: new Date().toLocaleString()
+                });
+                tx.oncomplete = render;
+            };
+            if(file) reader.readAsDataURL(file); else reader.onload({target:{result:null}});
+        }
+
+        function render() {
+            const list = document.getElementById('list');
+            list.innerHTML = "";
+            db.transaction("ships").objectStore("ships").openCursor(null, 'prev').onsuccess = e => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    const s = cursor.value;
+                    list.innerHTML += `<div class="card">
+                        <h4>${s.name}</h4>
+                        ${s.img ? `<img src="${s.img}">` : ''}
+                        <p><button class="delete" onclick="del(${cursor.key})">Delete</button>
+                        <button class="publish" onclick="publish(${cursor.key})">Publish to Website</button></p>
+                    </div>`;
+                    cursor.continue();
+                }
+            };
+        }
+
+        function del(id) { if(confirm("Delete?")) { db.transaction("ships","readwrite").objectStore("ships").delete(id).oncomplete = render; } }
+
+        async function publish(id) {
+            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Token:");
+            if(!token) return; localStorage.setItem('gh_token', token);
+            
+            db.transaction("ships").objectStore("ships").get(id).onsuccess = async e => {
+                const s = e.target.result;
+                const fileName = `${s.name.replace(/\s+/g, '_')}_${Date.now()}.json`;
+                const res = await fetch(`https://github.com{USER}/${REPO}/contents/${FOLDER}/${fileName}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${token}` },
+                    body: JSON.stringify({ message: "Added ship", content: btoa(JSON.stringify(s)) })
+                });
+                if(res.ok) alert("Published!");
+            };
+        }
+    </script>
+</body>
+</html>
