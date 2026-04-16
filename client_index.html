@@ -1,33 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Netquel - Ship Manager (Admin)</title>
+    <title>Netquel - Admin Manager</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; background: #121212; color: white; }
-        .card { background: #1e1e1e; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; }
-        input, textarea, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #444; background: #222; color: white; box-sizing: border-box; }
-        button { background: #007bff; cursor: pointer; border: none; font-weight: bold; }
-        .delete { background: #dc3545; width: auto; margin-right: 10px; }
-        .publish { background: #28a745; width: auto; }
-        img { max-width: 100%; border-radius: 4px; }
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 20px auto; background: #0b0f19; color: white; }
+        .card { background: #161b22; padding: 20px; margin: 15px 0; border-radius: 8px; border: 1px solid #30363d; }
+        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
+        button { background: #238636; cursor: pointer; border: none; font-weight: bold; }
+        button:hover { background: #2ea043; }
+        .delete { background: #da3633; width: auto; margin-right: 10px; }
+        .publish { background: #1f6feb; width: auto; }
+        img { max-width: 100%; border-radius: 4px; margin-top: 10px; border: 1px solid #30363d; }
     </style>
 </head>
 <body>
-    <h1>My Ship Vault</h1>
+    <h1>Netquel Ship Vault</h1>
     <div class="card">
-        <h3>Create New Ship</h3>
+        <h3>Create New Ship Entry</h3>
         <input type="text" id="name" placeholder="Ship Name">
-        <textarea id="code" placeholder="Encoded String"></textarea>
+        <textarea id="code" placeholder="Paste Encoded String (/save)" rows="3"></textarea>
         <input type="file" id="img" accept="image/*">
-        <button onclick="saveLocal()">Save Locally</button>
+        <button onclick="saveLocal()">Save to My Offline Vault</button>
     </div>
-    <hr>
+    <hr style="border: 0; border-top: 1px solid #30363d;">
     <div id="list"></div>
 
     <script>
-        // CONFIGURATION
-        const USER = 'YOUR_USERNAME';
-        const REPO = 'YOUR_REPO';
+        const USER = 'logangoogledev';
+        const REPO = 'Netquel_CustomShips_Server';
         const FOLDER = 'community-ships';
 
         let db;
@@ -46,7 +46,7 @@
                     img: e.target.result,
                     date: new Date().toLocaleString()
                 });
-                tx.oncomplete = render;
+                tx.oncomplete = () => { render(); document.getElementById('name').value = ''; document.getElementById('code').value = ''; };
             };
             if(file) reader.readAsDataURL(file); else reader.onload({target:{result:null}});
         }
@@ -59,31 +59,32 @@
                 if (cursor) {
                     const s = cursor.value;
                     list.innerHTML += `<div class="card">
-                        <h4>${s.name}</h4>
+                        <small style="color:#8b949e">${s.date}</small>
+                        <h4 style="margin:5px 0;">${s.name}</h4>
                         ${s.img ? `<img src="${s.img}">` : ''}
-                        <p><button class="delete" onclick="del(${cursor.key})">Delete</button>
-                        <button class="publish" onclick="publish(${cursor.key})">Publish to Website</button></p>
+                        <p><button class="delete" onclick="del(${cursor.key})">Delete Offline</button>
+                        <button class="publish" onclick="publish(${cursor.key})">Publish to Community</button></p>
                     </div>`;
                     cursor.continue();
                 }
             };
         }
 
-        function del(id) { if(confirm("Delete?")) { db.transaction("ships","readwrite").objectStore("ships").delete(id).oncomplete = render; } }
+        function del(id) { if(confirm("Remove from offline vault?")) { db.transaction("ships","readwrite").objectStore("ships").delete(id).oncomplete = render; } }
 
         async function publish(id) {
-            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Token:");
+            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Personal Access Token:");
             if(!token) return; localStorage.setItem('gh_token', token);
             
             db.transaction("ships").objectStore("ships").get(id).onsuccess = async e => {
                 const s = e.target.result;
-                const fileName = `${s.name.replace(/\s+/g, '_')}_${Date.now()}.json`;
+                const fileName = `${s.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.json`;
                 const res = await fetch(`https://github.com{USER}/${REPO}/contents/${FOLDER}/${fileName}`, {
                     method: 'PUT',
                     headers: { 'Authorization': `token ${token}` },
-                    body: JSON.stringify({ message: "Added ship", content: btoa(JSON.stringify(s)) })
+                    body: JSON.stringify({ message: `Added ${s.name}`, content: btoa(JSON.stringify(s)) })
                 });
-                if(res.ok) alert("Published!");
+                if(res.ok) alert("Published Successfully!"); else alert("Error. Check your token permissions.");
             };
         }
     </script>
