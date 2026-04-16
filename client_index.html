@@ -66,22 +66,47 @@
         function del(id) { if(confirm("Delete?")) db.transaction("ships","readwrite").objectStore("ships").delete(id).oncomplete = render; }
 
         async function publish(id) {
-            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Personal Access Token (with repo scope):");
-            if(!token) return; localStorage.setItem('gh_token', token);
+            let token = localStorage.getItem('gh_token') || prompt("Enter GitHub Token:");
+            if(!token) return; 
+            localStorage.setItem('gh_token', token);
             
-            db.transaction("ships").objectStore("ships").get(id).onsuccess = async e => {
+            const store = db.transaction("ships").objectStore("ships");
+            store.get(id).onsuccess = async e => {
                 const s = e.target.result;
-                const fileName = `${s.name.replace(/\s+/g, '_')}_${Date.now()}.json`;
-                // CORRECT API URL FORMAT
-                const url = `https://api.github.com/repos/${USER}/${REPO}/contents/${FOLDER}/${fileName}`;
-                const res = await fetch(url, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: "Shared ship", content: btoa(JSON.stringify(s)) })
-                });
-                if(res.ok) alert("Published Successfully!"); else alert("Error uploading to GitHub.");
+                // We use a safe name for the file
+                const cleanName = s.name.replace(/[^a-z0-9]/gi, '_');
+                const fileName = `${cleanName}_${Date.now()}.json`;
+                
+                // This is the EXACT URL the API needs
+                const url = "https://github.com" + fileName;
+        
+                try {
+                    const res = await fetch(url, {
+                        method: 'PUT',
+                        headers: { 
+                            'Authorization': 'token ' + token,
+                            'Content-Type': 'application/json' 
+                        },
+                        body: JSON.stringify({ 
+                            message: "Shared ship: " + s.name, 
+                            content: btoa(JSON.stringify(s)) 
+                        })
+                    });
+        
+                    if(res.ok) {
+                        alert("Published Successfully!");
+                    } else {
+                        const errData = await res.json();
+                        console.error(errData);
+                        alert("Error: " + errData.message);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Connection Failed. Make sure you are connected to the internet.");
+                }
             };
         }
+
     </script>
 </body>
 </html>
